@@ -1,10 +1,13 @@
 import { ethers } from "ethers";
 /*import abiJson from 'contract-abi';*/
+import abiJson from '../contract-abi.json';
 import whitelistedAddress from '../address-data.json';
 import logo from '../images/bb-logo.png';
 import twitterLogo from '../images/twitter.svg';
 import menuIcon from '../images/menu-icon.svg';
 import menuClose from '../images/menu-close.svg';
+
+const utils = ethers.utils;
 
 {/*function checkHeaderStuck() {
 	console.log('header js loaded');
@@ -44,33 +47,70 @@ checkHeaderStuck();*/}
 function checkWalletWhitelisted(address) {
 		let walletFound = false;
 		const addressJson = whitelistedAddress;
-		console.log(addressJson);
-		{/*for (var key of Object.keys(addressJson)) {
-		    // console.log(key + " -> " + JSON.stringify(addressJson[key]));
-		    for (var jey of Object.keys(addressJson[key])) {
-		    	console.log(jey + " -> " + JSON.stringify(addressJson[jey]));
-		    }
-		}*/}
-		//console.log(typeof addressJson);
 		for(var i = 0; i < addressJson.length; i++)
 		{
-		    var product = addressJson[i];
-		    walletFound = product["Address"] == address ? true : false;
+		    var userDetails = addressJson[i];
+		    walletFound = userDetails["Address"] == address ? true : false;
 		    if(walletFound) {
 		    	break;
 		    }
-		    console.log(product["Address"]);
-		    console.log(address);
-		    //console.log(walletFound);
-		    for(var j = 0; j < product.length; j++)
-		    {
-		    	console.log(j);
-		        var version = product[j];
-		        console.log(version);
-		    }
 		}
 		return walletFound;
-		//console.log(addressJson);
+}
+
+function getTokenIdAndProofFromWallet(address) {
+		const addressJson = whitelistedAddress;
+		let tokenAndProof = {};
+		for(var i = 0; i < addressJson.length; i++)
+		{
+		    var userDetails = addressJson[i];
+		    if(userDetails["Address"] == address) {
+		    		let tokenAndProof = {
+		    				token: userDetails["Token"],
+		    				proof: userDetails["Proof"]
+		    		}
+		    		return tokenAndProof;
+		    }
+		}
+}
+
+async function buyNfts(quantity, contract, tokenAndProof) {
+	console.log('buy nfts called')
+  let txHash = null;
+
+  try {
+    const gasLimit = quantity * 100000;
+    const itemPriceWei = Number(80000000000000000);
+
+    const overrides = {
+      value: String(Number(quantity) * Number(itemPriceWei)),
+      gasLimit: gasLimit
+    }
+
+    const tx = await contract.whitelistBuy(quantity, tokenAndProof.token, tokenAndProof.proof, overrides);
+    console.log(tx);
+    if (tx.hash) {
+    	console.log('Transacton successful!');
+      //this.$toast.info('Transaction submitted successfully');
+    }
+    txHash = tx.hash;
+  } catch (err) {
+    if (err.message.includes('denied')) {
+    	console.log('Transaction unsuccessful');
+      //this.$toast.info('Transaction unsuccessful');
+    } else {
+      //this.$toast.error(err.message);
+    }
+  }
+}
+
+async function continuallyGetAmountSold(contract) {
+	const mintCount = document.querySelector('.minting-count');
+	setInterval(async function(){
+		const tokensMinted = await contract.tokensMinted();
+
+	    mintCount.innerHTML = parseInt(tokensMinted, 16);
+	}, 15000);
 }
 
 async function getUserEthWallet() {
@@ -85,8 +125,10 @@ async function getUserEthWallet() {
 
   (async function () {
     let userAddress = await signer.getAddress();
-    document.getElementById("wallet").innerText =
-      "Your wallet is " + userAddress;
+    //document.getElementById("wallet").innerText = "Your wallet is " + userAddress;
+    const connectWalletBtn = document.querySelector('.connect-wallet-button');
+    connectWalletBtn.innerHTML = userAddress;
+    connectWalletBtn.classList.add("wallet-string");
 
     let wallet = userAddress;
 
@@ -94,51 +136,93 @@ async function getUserEthWallet() {
     // const walletIsWhitelisted = checkWalletWhitelisted('0x20769c77CDbCF9d7C92B903c06764F8F823F3082');
 		walletIsWhitelisted == true ? console.log('wallet is whitelisted!') : console.log('wallet not whitelisted');
 
-    let balance = await provider.getBalance(wallet);
-	  // we use the code below to convert the balance from wei to eth
-	  balance = ethers.utils.formatEther(balance);
-	  console.log(balance);
+		if (walletIsWhitelisted) {
+			const mintBtn = document.querySelector('.mint-btn');
+			const mintQtySelect = document.querySelector('.mint-quantity-selector');
 
-	  /*window.ethereum.enable();*/
+			mintBtn.removeAttribute('disabled');
+			mintQtySelect.disabled = false;
 
-    /*const provider = 'web3';*/
-    {/*await provider.send("eth_requestAccounts", []);
-    const ethers = new ethers.providers.Web3Provider(window.ethereum, 'any');
+			const tokenAndProof = getTokenIdAndProofFromWallet(wallet);
+	    	let balance = await provider.getBalance(wallet);
+			// we use the code below to convert the balance from wei to eth
+			balance = ethers.utils.formatEther(balance);
 
-    ethers.on('network', (newNetwork, oldNetwork) => {
-      if (oldNetwork) {
-        window.location.reload();
-      }
-    });
+		  	const contractAddress = "0xd7a0744ec45fa49684Ad99d99BF1Bf992F08A526";
 
-    console.log('yep fine so far');
-    console.log(ethers);*/}
+			const contract = new ethers.Contract(
+			    contractAddress,
+			    abiJson,
+			    signer
+			);
 
-    {/*
-    this.signer = this.ethers.getSigner();
-    this.account = await this.signer.getAddress();
-    this.balance = await this.signer.getBalance();
-    this.ethBalance = await ethers.utils.formatEther(this.balance);
-    this.signer = this.ethers.getSigner();
-    const addr = await this.signer.getAddress();
-    this.walletBtnText =
-      addr.substr(0, 10) + '...' + addr.substr(addr.length - 5, addr.length);
+			continuallyGetAmountSold(contract);
 
-    window.ethereum.on('accountsChanged', (accounts) => {
-      if (accounts.length < 1) return
+			// buyNfts(1, contract, tokenAndProof);
 
-      this.walletBtnText =
-        accounts[0].substr(0, 10) +
-        '...' +
-        accounts[0].substr(accounts[0].length - 5, accounts[0].length)
-    });
+			//console.log(contract);
 
-    document.querySelector('.connect-wallet-button').innerHTML = this.walletBtnText;
+			const gasLimit = 1 * 100000;
+		    const itemPriceWei = Number(80000000000000000);
 
-    const { chainId } = await this.ethers.getNetwork()
-    if (chainId !== 1) {
-      this.showNonMainnetWarning = true;
-    }*/}
+		    const overrides = {
+		      value: String(Number(1) * Number(itemPriceWei)),
+		      gasLimit: gasLimit
+		    }
+
+
+			const proofInBytes = utils.formatBytes32String(tokenAndProof.proof);
+			// const proofInBytes = ethers.utils.parseBytes32String(tokenAndProof.proof);
+		    console.log(typeof tokenAndProof.proof);
+		    const tx = await contract.whitelistBuy(1, tokenAndProof.token, proofInBytes);
+
+		    // console.log(tx);
+	    // console.log(contract);
+
+		  /*window.ethereum.enable();*/
+
+	    /*const provider = 'web3';*/
+	    {/*await provider.send("eth_requestAccounts", []);
+	    const ethers = new ethers.providers.Web3Provider(window.ethereum, 'any');
+
+	    ethers.on('network', (newNetwork, oldNetwork) => {
+	      if (oldNetwork) {
+	        window.location.reload();
+	      }
+	    });
+
+	    console.log('yep fine so far');
+	    console.log(ethers);*/}
+
+	    {/*
+	    this.signer = this.ethers.getSigner();
+	    this.account = await this.signer.getAddress();
+	    this.balance = await this.signer.getBalance();
+	    this.ethBalance = await ethers.utils.formatEther(this.balance);
+	    this.signer = this.ethers.getSigner();
+	    const addr = await this.signer.getAddress();
+	    this.walletBtnText =
+	      addr.substr(0, 10) + '...' + addr.substr(addr.length - 5, addr.length);
+
+	    window.ethereum.on('accountsChanged', (accounts) => {
+	      if (accounts.length < 1) return
+
+	      this.walletBtnText =
+	        accounts[0].substr(0, 10) +
+	        '...' +
+	        accounts[0].substr(accounts[0].length - 5, accounts[0].length)
+	    });
+
+	    document.querySelector('.connect-wallet-button').innerHTML = this.walletBtnText;
+
+	    const { chainId } = await this.ethers.getNetwork()
+	    if (chainId !== 1) {
+	      this.showNonMainnetWarning = true;
+	    }*/}
+
+    } else {
+    	alert('Wallet not whitelisted');
+    }
   })();
 
 }
