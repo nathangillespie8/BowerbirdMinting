@@ -315,9 +315,10 @@ section {
     }
     &[disabled] {
         background: #999;
+        color: #666;
         cursor: not-allowed;
         &:hover {
-            color: #fff;
+            color: #666;
         }
     }
 }
@@ -470,6 +471,10 @@ header {
         font-size: 1em;
         background-image: $btn-gradient;
         background-size: 400%;
+        &.wallet-string {
+            font-size: .813em;
+            text-transform: initial;
+        }
         @include mb-sm {
             padding: 5px 12px;
             &:hover {
@@ -808,7 +813,7 @@ header {
             font-size: 8em;
         }
     }
-    h3, .button {   
+    h3, .button, select {   
         visibility: hidden;
         animation: fadeIn 1s ease-in-out;
         animation-delay: 2s;
@@ -819,13 +824,37 @@ header {
         margin: 18px 0;
         font-family: $main-font, sans-serif;
     }
-    .button {
+    .button, select {
         animation-delay: 2.5s;
+    }
+    .button {
         font-size: 1.25em;
+        cursor: pointer;
     }
     @include mb-xl {
         max-width: 100%;
     }
+}
+
+.mint-input-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.mint-quantity-selector {
+    font-size: 2em;
+    padding: 6px 12px;
+    margin: 4px 10px 7px 0;
+    opacity: 1;
+    height: 50.5px;
+    border-radius: 0;
+    border: 0;
+}
+
+.minting-total-wrap {
+    display: none;
+    font-size: 2em;
+    font-weight: bold;
 }
 
 .into-rm {
