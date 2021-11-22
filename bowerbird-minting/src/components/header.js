@@ -131,9 +131,12 @@ function Header() {
     const val = await getSigner();
     setSigner(val);
     const address = await val.getAddress();
+    const connectBtn = document.querySelector('.connect-wallet-button');
+    connectBtn.innerHTML = address;
+    connectBtn.classList.add("wallet-string");
     let tokenAndProof = getTokenIdAndProofFromWallet(address.toLowerCase());
     if (!tokenAndProof) {
-      console.log("THIS USER IS NOT WHITELISTED");
+      toast.error("Wallet not whitelisted");
     } else {
       setTokenAndProof(tokenAndProof);
     }
@@ -152,20 +155,21 @@ function Header() {
         gasLimit: gasLimit,
       };
 
+      const proofArray = tokenAndProof.proof.split(",");
+
       const tx = await contract.whitelistBuy(
         quantity,
         tokenAndProof.token,
-        tokenAndProof.proof,
+        proofArray,
         overrides
       );
       if (tx.hash) {
-        toast.info("Transaction submitted successfully");
+        toast.success("Transaction submitted successfully");
       }
       txHash = tx.hash;
     } catch (err) {
       if (err.message.includes("denied")) {
-        console.log("Transaction unsuccessful");
-        toast.info("Transaction unsuccessful");
+        toast.error("Transaction unsuccessful");
       } else {
         toast.error(err.message);
       }
